@@ -26,24 +26,9 @@ jobs:
           M=android/app/src/main/AndroidManifest.xml
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' $M
           sed -i 's#<activity#<activity android:screenOrientation="portrait"#' $M
-          # icône Girigo (mains jointes) à toutes les densités
-          R=android/app/src/main/res
-          rm -rf $R/mipmap-anydpi-v26
-          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-            n=${d%%:*}; s=${d##*:}
-            mkdir -p $R/mipmap-$n
-            convert assets/icon-512.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher.png
-            cp $R/mipmap-$n/ic_launcher.png $R/mipmap-$n/ic_launcher_round.png
-            convert assets/icon-512.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher_foreground.png
-          done
-          # petite icône de notification (silhouette blanche)
-          mkdir -p $R/drawable
-          convert assets/icon-512.png -resize 96x96 -colorspace gray -threshold 50% -transparent black $R/drawable/ic_stat_icon_config_sample.png
-          # écran de démarrage noir avec les mains jointes
-          for f in $(find $R -name 'splash.png'); do
-            size=$(identify -format '%wx%h' $f)
-            convert -size $size xc:'#0a0a0a' \( assets/icon-512.png -resize 40%x40% \) -gravity center -composite $f
-          done
+          # icône Girigo (mains jointes), icône de notification et écran de démarrage noir
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          cp -r android-res/* android/app/src/main/res/
           npx cap sync android
       - name: Compiler
         working-directory: android
