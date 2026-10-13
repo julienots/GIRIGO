@@ -24,7 +24,24 @@ Tout est en français et tout reste sur ton téléphone (fiction, aucun vœu n'e
   Tu peux importer ta propre musique (par ex. la bande-son de la série) dans les paramètres.
 - **Installable** sur l'écran d'accueil (PWA) et utilisable hors ligne.
 
-## L'installer sur ton téléphone
+## Télécharger l'APK Android
+
+L'APK est compilé automatiquement par GitHub Actions (workflow « Construire l'APK Android »)
+et publié ici : https://github.com/julienots/GIRIGO/releases/tag/apk
+
+Télécharge `girigo.apk` sur ton téléphone, ouvre-le et autorise « Installer des applis inconnues ».
+Dans l'APK, les rappels sont programmés par Android : ils arrivent même quand l'appli est fermée,
+et une notification permanente (impossible à balayer) reste affichée tant que le compte à rebours tourne.
+
+## Compte à rebours imparable
+
+- Aucun bouton pour annuler un vœu ; un vœu en cours ne peut pas être supprimé.
+- « Tout effacer » est refusé tant qu'un compte à rebours tourne.
+- Le temps continue de s'écouler appli fermée ou téléphone éteint ; l'écran « Le temps est écoulé »
+  s'affiche à la réouverture.
+- Seule exception, comme dans la série : un vœu fait par **quelqu'un d'autre** arrête ton compte à rebours.
+
+## L'installer comme appli web
 
 1. Dans le dépôt GitHub : **Settings → Pages → Source : GitHub Actions**.
 2. Le workflow « Publier sur GitHub Pages » publie l'appli à chaque push.

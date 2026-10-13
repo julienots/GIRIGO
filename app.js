@@ -182,8 +182,18 @@ setInterval(() => {
 /* =========================================================
    Notifications
    ========================================================= */
+// Dans l'APK (Capacitor), les notifications sont programmées par Android lui-même :
+// elles arrivent même quand l'appli est fermée.
+const NATIVE = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()
+  ? window.Capacitor.Plugins.LocalNotifications : null;
+const nid = s => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h) % 2000000000; };
+if (NATIVE) {
+  NATIVE.createChannel({ id: 'girigo', name: 'Girigo', description: 'Compte à rebours et vœux', importance: 5, visibility: 1, vibration: true }).catch(() => {});
+  NATIVE.requestPermissions().catch(() => {});
+}
+
 let swReg = null;
-if ('serviceWorker' in navigator) {
+if (!NATIVE && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
 }
 let toastTimer;
@@ -197,6 +207,11 @@ $('#toast').addEventListener('click', () => { $('#toast').classList.remove('show
 async function notify(body, { tag, silent } = {}) {
   if (!silent) { GirigoAudio.chime(); vibrate([80, 60, 80]); }
   if (document.visibilityState === 'visible') toast(body);
+  if (NATIVE) {
+    if (document.visibilityState !== 'visible')
+      NATIVE.schedule({ notifications: [{ id: nid((tag || 'girigo') + Date.now()), title: '기리고', body, channelId: 'girigo' }] }).catch(() => {});
+    return;
+  }
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible') return; // déjà affichée dans l'appli
   const opts = { body, icon: 'assets/icon-192.png', badge: 'assets/icon-192.png', tag: tag || 'girigo', renotify: true, vibrate: [100, 50, 100] };
@@ -208,6 +223,18 @@ async function notify(body, { tag, silent } = {}) {
 
 // Programme les notifications à l'avance quand le navigateur le permet (Notification Triggers)
 async function scheduleSystemNotifications(w) {
+  if (NATIVE) {
+    const end = new Date(w.deadline).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
+    const list = milestones(w).filter(m => m.at > Date.now()).map(m => ({
+      id: nid(w.id + m.key), title: '기리고', body: m.text, channelId: 'girigo',
+      schedule: { at: new Date(m.at), allowWhileIdle: true },
+    }));
+    // notification permanente, impossible à balayer, tant que le compte à rebours tourne
+    list.push({ id: nid(w.id + 'ongoing'), title: '기리고 · compte à rebours en cours', channelId: 'girigo',
+      body: `« ${w.text} » — fin ${end}. Il ne peut pas être arrêté.`, ongoing: true, autoCancel: false });
+    try { await NATIVE.schedule({ notifications: list }); } catch {}
+    return;
+  }
   if (!('Notification' in window) || Notification.permission !== 'granted' || typeof TimestampTrigger === 'undefined') return;
   const reg = swReg || await navigator.serviceWorker?.ready;
   if (!reg) return;
@@ -219,6 +246,11 @@ async function scheduleSystemNotifications(w) {
   }
 }
 async function cancelSystemNotifications(w) {
+  if (NATIVE) {
+    const ids = milestones(w).map(m => ({ id: nid(w.id + m.key) })).concat({ id: nid(w.id + 'ongoing') });
+    try { await NATIVE.cancel({ notifications: ids }); } catch {}
+    return;
+  }
   try {
     const reg = swReg || await navigator.serviceWorker?.ready;
     const list = await reg.getNotifications({ includeTriggered: true });
@@ -263,6 +295,9 @@ $('#s-intro').addEventListener('click', async () => {
   show('s-home');
   glitchEl($('#home-logo'), 700);
   glitchEl($('#wish-btn'), 700);
+  setTimeout(checkUnseenEnd, 1200);
+  // reprogramme les rappels (après un redémarrage du téléphone, par exemple)
+  activeWishes().forEach(scheduleSystemNotifications);
   if (!LS.get('seenRules', false)) setTimeout(() => toast('Bienvenue. Lis les règles avant de faire un vœu.'), 1500);
 });
 
@@ -555,9 +590,14 @@ function tick() {
 setInterval(tick, 250);
 
 function expire(w) {
-  w.status = 'expired'; saveWishes();
+  w.status = 'expired'; w.endSeen = false; saveWishes();
+  if (NATIVE) NATIVE.cancel({ notifications: [{ id: nid(w.id + 'ongoing') }] }).catch(() => {});
   H.home.color = [255, 255, 255];
-  if (document.visibilityState !== 'visible') return;
+  showEnd(w);
+}
+function showEnd(w) {
+  if (document.visibilityState !== 'visible' || current === 's-intro') return;
+  w.endSeen = true; saveWishes();
   GirigoAudio.end(); flash(true); shake(); vibrate([500, 100, 500, 100, 800]);
   $('#end-sub').textContent = `${w.name} · « ${w.text} »`;
   show('s-end');
@@ -655,11 +695,12 @@ function renderSettings() {
   $('#set-vibe').checked = settings.vibe;
   $('#set-spirits').checked = settings.spirits;
   $('#set-duration').value = String(settings.duration);
-  const p = 'Notification' in window ? Notification.permission : 'unsupported';
+  const p = NATIVE ? 'native' : 'Notification' in window ? Notification.permission : 'unsupported';
   $('#notif-state').textContent = {
     granted: 'Notifications activées.' + (typeof TimestampTrigger === 'undefined' ? ' Garde l\'appli ouverte en arrière-plan pour recevoir les rappels.' : ''),
     denied: 'Notifications bloquées : autorise-les dans les réglages du navigateur.',
     default: 'Les notifications te préviennent quand ton temps s\'écoule.',
+    native: 'Les rappels sont programmés dans Android : ils arrivent même appli fermée.',
     unsupported: 'Ce navigateur ne gère pas les notifications. Installe l\'appli sur l\'écran d\'accueil.',
   }[p];
 }
@@ -670,6 +711,12 @@ $('#set-vibe').addEventListener('change', e => { settings.vibe = e.target.checke
 $('#set-spirits').addEventListener('change', e => { settings.spirits = e.target.checked; saveSettings(); });
 $('#set-duration').addEventListener('change', e => { settings.duration = +e.target.value; saveSettings(); toast('S\'applique à tes prochains vœux.'); });
 $('#set-notif').addEventListener('click', async () => {
+  if (NATIVE) {
+    try { await NATIVE.requestPermissions(); } catch {}
+    activeWishes().forEach(scheduleSystemNotifications);
+    notify('Les notifications de Girigo sont activées.');
+    return;
+  }
   if (!('Notification' in window)) { renderSettings(); return; }
   await Notification.requestPermission();
   renderSettings();
@@ -694,6 +741,11 @@ async function loadCustomTrack() {
   if (blob) { GirigoAudio.setCustomTrack(blob); $('#track-state').textContent = 'Musique : ' + name; }
 }
 $('#set-reset').addEventListener('click', async () => {
+  if (activeWishes().length) {
+    GirigoAudio.glitch(0.4); shake(); vibrate([200, 80, 200]);
+    toast('Un vœu ne peut jamais être annulé. Le compte à rebours continuera.');
+    return;
+  }
   if (!confirm('Effacer tous les vœux, vidéos et réglages ?')) return;
   wishes.forEach(cancelSystemNotifications);
   LS.clear(); await DB.clear();
@@ -722,8 +774,12 @@ $('#set-reset').addEventListener('click', async () => {
    Divers
    ========================================================= */
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') tick();
+  if (document.visibilityState === 'visible') { tick(); checkUnseenEnd(); }
 });
+function checkUnseenEnd() {
+  const w = wishes.find(x => x.status === 'expired' && x.endSeen === false);
+  if (w) showEnd(w);
+}
 // bouton retour Android : revient à l'accueil plutôt que de quitter
 history.pushState(null, '', location.href);
 window.addEventListener('popstate', () => {

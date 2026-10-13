@@ -1,0 +1,15 @@
+{
+  "name": "girigo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "기리고 · Girigo — appli de fan (PWA + APK Android via Capacitor)",
+  "scripts": {
+    "www": "rm -rf www && mkdir www && cp -r index.html style.css app.js audio.js frames.js sw.js manifest.webmanifest assets www/"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/local-notifications": "8.3.1"
+  }
+}

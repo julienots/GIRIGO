@@ -1,7 +1,8 @@
 // Service worker Girigo : fonctionnement hors ligne + notifications.
-const CACHE = 'girigo-v1';
+const CACHE = 'girigo-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'audio.js', 'frames.js', 'manifest.webmanifest',
-  'assets/logo-girigo.png', 'assets/sowon-bilgi.png', 'assets/icon-192.png', 'assets/icon-512.png'];
+  'assets/logo-girigo.png', 'assets/sowon-bilgi.png', 'assets/icon-192.png', 'assets/icon-512.png',
+  'assets/fonts/DotGothic16.woff2', 'assets/fonts/IBMPlexMono-300.woff2', 'assets/fonts/IBMPlexMono-400.woff2'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -13,7 +14,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
     fetch(e.request).then(res => {
-      if (res.ok && (e.request.url.startsWith(self.location.origin) || e.request.url.includes('fonts.g'))) {
+      if (res.ok && (e.request.url.startsWith(self.location.origin))) {
         const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy));
       }
       return res;

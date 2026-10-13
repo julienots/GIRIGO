@@ -1,0 +1,66 @@
+name: Construire l'APK Android
+on:
+  push:
+    branches: [main, master, ccr-f15f6d81-tgt4n7]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dépendances
+        run: npm install --no-audit --no-fund
+      - name: Préparer le projet Android
+        run: |
+          npm run www
+          npx cap add android
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' $M
+          sed -i 's#<activity#<activity android:screenOrientation="portrait"#' $M
+          # icône Girigo (mains jointes) à toutes les densités
+          R=android/app/src/main/res
+          rm -rf $R/mipmap-anydpi-v26
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            n=${d%%:*}; s=${d##*:}
+            mkdir -p $R/mipmap-$n
+            convert assets/icon-512.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher.png
+            cp $R/mipmap-$n/ic_launcher.png $R/mipmap-$n/ic_launcher_round.png
+            convert assets/icon-512.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher_foreground.png
+          done
+          # petite icône de notification (silhouette blanche)
+          mkdir -p $R/drawable
+          convert assets/icon-512.png -resize 96x96 -colorspace gray -threshold 50% -transparent black $R/drawable/ic_stat_icon_config_sample.png
+          # écran de démarrage noir avec les mains jointes
+          for f in $(find $R -name 'splash.png'); do
+            size=$(identify -format '%wx%h' $f)
+            convert -size $size xc:'#0a0a0a' \( assets/icon-512.png -resize 40%x40% \) -gravity center -composite $f
+          done
+          npx cap sync android
+      - name: Compiler
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk girigo.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: girigo-apk
+          path: girigo.apk
+      - name: Publier dans les Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: Girigo — APK Android
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: girigo.apk
+          body: |
+            Télécharge **girigo.apk** ci-dessous sur ton téléphone Android, ouvre-le,
+            puis autorise « Installer des applis inconnues » si Android le demande.
