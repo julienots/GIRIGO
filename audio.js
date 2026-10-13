@@ -3,6 +3,9 @@
 const GirigoAudio = (() => {
   let ctx, master, musicBus, sfxBus, reverb, timer, nextTime = 0, step = 0;
   let musicOn = false, sfxOn = true, volume = 0.7, customEl = null, customUrl = null;
+  // Musique de l'appli (fichier fourni) : deux phrases 8-bit qui bouclent de 0,56 s à 9,28 s
+  let theme = null, themeSrc = null, themeBus, source = 'serie';
+  const LOOP_A = 0.56, LOOP_B = 9.28, PHRASE_END = 3.3;
 
   const BPM = 64, STEP = 60 / BPM / 2; // croches
   // Mélodie de boîte à musique (ré mineur) — 32 croches, 0 = silence
@@ -48,9 +51,46 @@ const GirigoAudio = (() => {
     reverb.connect(wet).connect(master);
     musicBus = ctx.createGain(); musicBus.gain.value = 0;
     musicBus.connect(master); musicBus.connect(reverb);
+    themeBus = ctx.createGain(); themeBus.gain.value = 0;
+    themeBus.connect(master);
+    const send = ctx.createGain(); send.gain.value = 0.12; themeBus.connect(send).connect(reverb);
     sfxBus = ctx.createGain(); sfxBus.gain.value = 1;
     sfxBus.connect(master); sfxBus.connect(reverb);
     startDrone();
+    fetch('assets/audio/girigo.mp3').then(r => r.arrayBuffer())
+      .then(b => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej)))
+      .then(buf => { theme = buf; setMusic(musicOn); }).catch(() => {});
+  }
+
+  function startTheme(offset = LOOP_A) {
+    if (!theme) return;
+    stopTheme();
+    themeSrc = ctx.createBufferSource();
+    themeSrc.buffer = theme; themeSrc.loop = true;
+    themeSrc.loopStart = LOOP_A; themeSrc.loopEnd = LOOP_B;
+    themeSrc.connect(themeBus); themeSrc.start(ctx.currentTime + 0.02, offset);
+  }
+  function stopTheme() {
+    if (themeSrc) { try { themeSrc.stop(); } catch {} themeSrc.disconnect(); themeSrc = null; }
+  }
+  // relance la musique depuis le début de la phrase (quand on appuie sur 소원 빌기)
+  function restartTheme() {
+    if (!ctx || !musicOn || source !== 'serie' || customEl || !theme) return;
+    themeBus.gain.cancelScheduledValues(ctx.currentTime);
+    themeBus.gain.setValueAtTime(1, ctx.currentTime);
+    startTheme(LOOP_A);
+  }
+  // joue la première phrase seule (son de notification de l'appli)
+  function jingle() {
+    if (!ctx || !sfxOn || !theme) return false;
+    const src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = theme;
+    const t = ctx.currentTime, dur = PHRASE_END - LOOP_A;
+    g.gain.setValueAtTime(0.9, t); g.gain.setValueAtTime(0.9, t + dur - 0.4); g.gain.linearRampToValueAtTime(0, t + dur);
+    // baisse la musique pendant le jingle
+    if (musicOn) { themeBus.gain.setTargetAtTime(0.15, t, 0.05); themeBus.gain.setTargetAtTime(1, t + dur, 0.3); }
+    src.connect(g).connect(sfxBus); src.start(t, LOOP_A, dur);
+    return true;
   }
 
   // ---- nappe grave inquiétante ----
@@ -117,16 +157,21 @@ const GirigoAudio = (() => {
   function setMusic(on) {
     musicOn = on;
     if (!ctx) return;
-    if (customEl) {
-      musicBus.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
-      clearInterval(timer); timer = null;
-      if (on) customEl.play().catch(() => {}); else customEl.pause();
-      return;
-    }
-    musicBus.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.8);
-    if (on && !timer) { nextTime = ctx.currentTime + 0.1; timer = setInterval(schedule, 50); }
-    if (!on && timer) { clearInterval(timer); timer = null; }
+    const t = ctx.currentTime;
+    const useCustom = !!customEl, useTheme = !useCustom && source === 'serie' && !!theme, useSynth = !useCustom && !useTheme && source === 'synth';
+    // musique importée
+    if (customEl) { if (on) customEl.play().catch(() => {}); else customEl.pause(); }
+    // musique de l'appli
+    themeBus.gain.setTargetAtTime(on && useTheme ? 1 : 0, t, 0.3);
+    if (on && useTheme && !themeSrc) startTheme();
+    if (!(on && useTheme) && themeSrc) setTimeout(() => { if (!(musicOn && source === 'serie' && !customEl)) stopTheme(); }, 1500);
+    // thème synthétisé
+    musicBus.gain.setTargetAtTime(on && useSynth ? 0.9 : 0, t, 0.8);
+    if (on && useSynth && !timer) { nextTime = t + 0.1; timer = setInterval(schedule, 50); }
+    if (!(on && useSynth) && timer) { clearInterval(timer); timer = null; }
   }
+
+  function setSource(s) { source = s; setMusic(musicOn); }
 
   function setCustomTrack(blob) {
     if (customEl) { customEl.pause(); customEl = null; }
@@ -187,6 +232,7 @@ const GirigoAudio = (() => {
 
   function chime() {
     if (!can()) return;
+    if (jingle()) return;
     const t = ctx.currentTime;
     bell(freq('A5'), t, 1.6, 0.25, sfxBus);
     bell(freq('D6'), t + 0.14, 2.2, 0.22, sfxBus);
@@ -222,7 +268,7 @@ const GirigoAudio = (() => {
   }
 
   return {
-    init, setMusic, setCustomTrack, setVolume,
+    init, setMusic, setCustomTrack, setVolume, setSource, restartTheme, jingle,
     setSfx: v => { sfxOn = v; },
     glitch, blip, heartbeat, chime, granted, end,
     get ready() { return !!ctx; },

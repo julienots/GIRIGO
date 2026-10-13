@@ -74,9 +74,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 #home-hand:active { transform: scale(.97); }
 .wish-btn { width: min(52vw, 290px); padding: 6px; transition: transform .15s; }
 .wish-btn:active { transform: scale(.95); }
-.wish-sub { margin: -1.5vh 0 0; font: 11px var(--pix); letter-spacing: .55em; color: var(--dim); }
-.world-count { margin: 0; font: 10px var(--pix); color: #555; letter-spacing: .15em; }
-.world-count span { color: #999; }
 .home-timer { position: absolute; top: 47%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;
   mix-blend-mode: difference; }
 .home-timer .lbl { display: block; font: 10px var(--pix); letter-spacing: .4em; }
@@ -84,7 +81,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .icon-btn { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; width: 44px; height: 44px; z-index: 3;
   display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; }
-.icon-btn span { display: block; width: 22px; height: 2px; background: #777; }
+.icon-btn span { display: block; width: 4px; height: 4px; background: #555; }
+.icon-btn { opacity: .6; }
 
 /* ---------- menu ---------- */
 .menu-list { width: 100%; max-width: 520px; display: flex; flex-direction: column; }
@@ -128,15 +126,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 #rec-canvas { width: 100%; height: 100%; object-fit: cover; }
 .rec-ui { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between;
   padding: max(18px, env(safe-area-inset-top)) 16px max(26px, env(safe-area-inset-bottom)); }
-.rec-top { align-self: center; display: flex; align-items: center; gap: 8px; font: 15px var(--pix); background: rgba(0,0,0,.5); padding: 6px 14px; }
-.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; }
-.rec-dot.on { background: var(--red); animation: blink 1s steps(2) infinite; }
-.rec-wish { text-align: center; font-size: 15px; background: rgba(0,0,0,.55); padding: 10px; margin: auto 0 20px; line-height: 1.4; }
-.rec-bottom { display: flex; justify-content: space-between; align-items: center; }
-.rec-btn { width: 92px; height: 92px; border-radius: 50%; border: 4px solid #fff; display: grid; place-items: center; transition: border-color .3s, transform .2s; }
+.rec-close { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 12px; width: 44px; height: 44px; font-size: 30px; color: rgba(255,255,255,.45); }
+.rec-hint { margin: 64px auto 0; text-align: center; font: 13px var(--pix); letter-spacing: .12em; line-height: 1.7; color: rgba(255,255,255,.75); transition: opacity 1.2s; }
+.rec-hint.gone { opacity: 0; }
+.rec-bottom { display: flex; justify-content: center; align-items: center; margin-top: auto; }
+.rec-btn { position: relative; width: 96px; height: 96px; border-radius: 50%; border: 4px solid #fff; display: grid; place-items: center; transition: border-color .3s, transform .2s; }
+.rec-ring { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); transform: rotate(-90deg); pointer-events: none; }
+.rec-ring circle { fill: none; stroke: var(--red); stroke-width: 4; stroke-dasharray: 295.3; stroke-dashoffset: 295.3; }
 .rec-btn canvas { height: 56px; width: auto; aspect-ratio: 58 / 90; image-rendering: pixelated; }
 .rec-btn:active { transform: scale(.94); }
-.rec-btn.on { border-color: var(--red); animation: ring 1.2s infinite; }
+.rec-btn.on { border-color: rgba(255,255,255,.35); }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(224,22,43,.7) } 100% { box-shadow: 0 0 0 22px rgba(224,22,43,0) } }
 
 /* ---------- confirmation ---------- */
@@ -227,3 +226,6 @@ body.shake #app { animation: shake .4s; }
 @media (prefers-reduced-motion: reduce) {
   .glitch.on img, .glitch-text.on::before, .glitch-text.on::after, .blink { animation: none !important; }
 }
+
+#s-form #confirm-video { max-height: 30vh; margin-bottom: 14px; }
+#s-form .warn { margin: 0; }

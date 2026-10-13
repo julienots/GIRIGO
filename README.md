@@ -10,9 +10,9 @@ Tout est en français et tout reste sur ton téléphone (fiction, aucun vœu n'e
   rendue pixel par pixel, effets glitch, lignes de balayage, apparitions.
 - **Animation du vœu** : la main se tourne, les deux mains se rejoignent en prière, puis l'écran caméra
   s'ouvre avec le bouton rond aux mains jointes.
-- **Les règles** de Girigo, à accepter avant chaque vœu.
-- **Vœu filmé** : caméra avant/arrière, ton nom, ta date de naissance et l'heure incrustés dans la vidéo
-  (30 s max). Option « vœu écrit » sans caméra.
+- **Fidèle à la vraie appli** : l'accueil n'affiche que 기리고, la main et 소원 빌기 ; l'écran caméra n'a
+  que l'image et le bouton rond aux mains jointes (anneau rouge = durée, 30 s max ; double-toucher = changer
+  de caméra). Les règles s'affichent au premier vœu ; nom, date de naissance et vœu se saisissent après la vidéo.
 - **Compte à rebours** (24 h comme dans la série, réglable de 1 min à 7 jours) : la main se désagrège
   au fil du temps, battements de cœur et rouge dans la dernière minute, écran « Le temps est écoulé ».
 - **Règle de la série** : quand quelqu'un d'autre fait un vœu, ton compte à rebours s'arrête.
@@ -20,8 +20,9 @@ Tout est en français et tout reste sur ton téléphone (fiction, aucun vœu n'e
   notifications système + bannière dans l'appli + vibrations.
 - **Vœux réalisés** : bouton « Mon vœu s'est réalisé », journal de tous les vœux avec leur vidéo.
 - **Compteur** : vœux faits / réalisés / en cours / suspendus / expirés + compteur mondial simulé.
-- **Musique** : thème original de boîte à musique inquiétante synthétisé en direct, effets sonores.
-  Tu peux importer ta propre musique (par ex. la bande-son de la série) dans les paramètres.
+- **Musique de Girigo** (`assets/audio/girigo.mp3`) jouée en boucle sans coupure dès le premier toucher,
+  relancée au début de la phrase quand on appuie sur 소원 빌기 ; sa première phrase sert de son de notification
+  (dans l'appli et dans l'APK). Un thème d'ambiance synthétisé reste disponible dans les paramètres.
 - **Installable** sur l'écran d'accueil (PWA) et utilisable hors ligne.
 
 ## Télécharger l'APK Android

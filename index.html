@@ -14,14 +14,8 @@
 <body>
 <div id="app">
 
-  <!-- ÉCRAN D'INTRO -->
-  <section class="screen active" id="s-intro">
-    <canvas class="hand-canvas" id="intro-hand" width="58" height="90"></canvas>
-    <p class="intro-tap blink">TOUCHE L'ÉCRAN</p>
-  </section>
-
   <!-- ACCUEIL (comme sur la photo) -->
-  <section class="screen" id="s-home">
+  <section class="screen active" id="s-home">
     <button class="icon-btn menu-btn" data-go="s-menu" aria-label="Menu">
       <span></span><span></span><span></span>
     </button>
@@ -40,8 +34,6 @@
       <img src="assets/sowon-bilgi.png" alt="" aria-hidden="true">
       <img src="assets/sowon-bilgi.png" alt="" aria-hidden="true">
     </button>
-    <p class="wish-sub">FAIRE UN VŒU</p>
-    <p class="world-count"><span id="world-count">0</span> vœux exaucés dans le monde</p>
   </section>
 
   <!-- MENU -->
@@ -62,7 +54,7 @@
     <header class="bar"><button class="back" data-go="s-home">‹</button><h2>LES RÈGLES</h2><span></span></header>
     <ol class="rules">
       <li>Filme-toi en formulant ton vœu à voix haute.</li>
-      <li>Ton <b>nom</b> et ta <b>date de naissance</b> doivent apparaître dans la vidéo.</li>
+      <li>Dis ton <b>nom</b> et ta <b>date de naissance</b> dans la vidéo.</li>
       <li>Un vœu envoyé ne peut <b>jamais</b> être annulé.</li>
       <li>Girigo exaucera ton vœu.</li>
       <li>Dès que ton vœu est accepté, un <b>compte à rebours</b> commence.</li>
@@ -74,45 +66,35 @@
     <button class="btn" id="rules-next" disabled>CONTINUER</button>
   </section>
 
-  <!-- IDENTITÉ + VŒU -->
-  <section class="screen" id="s-form">
-    <header class="bar"><button class="back" data-go="s-home">‹</button><h2>TON IDENTITÉ</h2><span></span></header>
-    <form id="wish-form" class="form" autocomplete="off">
-      <label>NOM<input id="f-name" required maxlength="40" placeholder="Ton nom complet"></label>
-      <label>DATE DE NAISSANCE<input id="f-birth" type="date" required></label>
-      <label>TON VŒU<textarea id="f-wish" required maxlength="200" rows="3" placeholder="Je souhaite que…"></textarea></label>
-      <p class="hint">Ton nom et ta date de naissance seront incrustés dans la vidéo.</p>
-      <button class="btn" type="submit">FILMER MON VŒU</button>
-      <button class="btn ghost" type="button" id="no-cam">Sans caméra (vœu écrit)</button>
-    </form>
-  </section>
-
-  <!-- ENREGISTREMENT -->
+  <!-- ENREGISTREMENT (comme dans l'appli : la caméra et un seul bouton) -->
   <section class="screen" id="s-record">
     <div class="cam-wrap">
       <canvas id="rec-canvas" width="720" height="1280"></canvas>
       <div class="rec-ui">
-        <div class="rec-top"><span class="rec-dot" id="rec-dot"></span><span id="rec-time">00:00</span></div>
-        <p class="rec-wish" id="rec-wish"></p>
+        <button class="rec-close" id="rec-cancel" aria-label="Fermer">×</button>
+        <p class="rec-hint" id="rec-hint">Dis ton nom, ta date de naissance,<br>puis fais ton vœu.</p>
         <div class="rec-bottom">
-          <button class="btn ghost small" id="rec-cancel">ANNULER</button>
-          <button class="rec-btn" id="rec-btn" aria-label="Enregistrer"><canvas id="rec-icon" width="58" height="90"></canvas></button>
-          <button class="btn ghost small" id="rec-flip">⟲</button>
+          <button class="rec-btn" id="rec-btn" aria-label="Enregistrer">
+            <svg class="rec-ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="47" id="rec-ring"/></svg>
+            <canvas id="rec-icon" width="58" height="90"></canvas>
+          </button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CONFIRMATION -->
-  <section class="screen" id="s-confirm">
-    <header class="bar"><button class="back" id="confirm-back">‹</button><h2>ENVOYER ?</h2><span></span></header>
+  <!-- TON VŒU (après l'enregistrement) -->
+  <section class="screen" id="s-form">
+    <header class="bar"><button class="back" id="form-back">‹</button><h2>TON VŒU</h2><span></span></header>
     <video id="confirm-video" playsinline controls></video>
-    <div class="confirm-card">
-      <p class="who" id="confirm-who"></p>
-      <p class="what" id="confirm-what"></p>
-    </div>
-    <p class="warn">Une fois envoyé, ton vœu ne pourra plus être annulé.</p>
-    <button class="btn danger" id="send-btn">ENVOYER MON VŒU</button>
+    <form id="wish-form" class="form" autocomplete="off">
+      <label>NOM<input id="f-name" required maxlength="40" placeholder="Ton nom complet"></label>
+      <label>DATE DE NAISSANCE<input id="f-birth" type="date" required></label>
+      <label>TON VŒU<textarea id="f-wish" required maxlength="200" rows="2" placeholder="Je souhaite que…"></textarea></label>
+      <p class="warn">Une fois envoyé, ton vœu ne pourra plus être annulé.</p>
+      <button class="btn danger" type="submit" id="send-btn">ENVOYER MON VŒU</button>
+      <button class="btn ghost" type="button" id="refilm">REFILMER</button>
+    </form>
   </section>
 
   <!-- TRANSMISSION -->
@@ -181,6 +163,12 @@
     <header class="bar"><button class="back" data-go="s-menu">‹</button><h2>PARAMÈTRES</h2><span></span></header>
     <div class="settings">
       <label class="set">Musique<input type="checkbox" id="set-music"></label>
+      <label class="set col">Musique jouée
+        <select id="set-source">
+          <option value="serie">Musique de Girigo</option>
+          <option value="synth">Thème synthétisé (ambiance)</option>
+        </select>
+      </label>
       <label class="set">Volume<input type="range" id="set-volume" min="0" max="100"></label>
       <label class="set">Effets sonores<input type="checkbox" id="set-sfx"></label>
       <label class="set">Vibrations<input type="checkbox" id="set-vibe"></label>
@@ -197,8 +185,8 @@
       <button class="btn ghost" id="set-notif">ACTIVER LES NOTIFICATIONS</button>
       <p class="hint" id="notif-state"></p>
       <label class="btn ghost file">IMPORTER MA MUSIQUE<input type="file" id="set-track" accept="audio/*"></label>
-      <p class="hint" id="track-state">Thème Girigo d'origine (synthétisé).</p>
-      <button class="btn ghost" id="set-track-reset">REMETTRE LE THÈME GIRIGO</button>
+      <p class="hint" id="track-state">Musique de Girigo.</p>
+      <button class="btn ghost" id="set-track-reset">REMETTRE LA MUSIQUE DE GIRIGO</button>
       <button class="btn ghost" id="set-test">TESTER UNE NOTIFICATION</button>
       <button class="btn danger" id="set-reset">TOUT EFFACER</button>
     </div>
@@ -211,7 +199,7 @@
       <p><b>기리고 · Girigo</b></p>
       <p>Application de fan inspirée de la série Netflix <i>If Wishes Could Kill</i> (기리고, 2026).</p>
       <p>Tout est fictif : aucun vœu n'est réellement envoyé, et les vidéos restent uniquement sur ton téléphone.</p>
-      <p class="dim">Musique : thème original synthétisé en direct. Tu peux importer ta propre musique dans les paramètres.</p>
+      <p class="dim">Musique : la musique de Girigo en boucle (son des notifications compris). Tu peux importer une autre musique dans les paramètres.</p>
     </div>
   </section>
 

@@ -40,7 +40,7 @@ const DB = (() => {
   };
 })();
 
-const DEFAULTS = { music: true, volume: 70, sfx: true, vibe: true, spirits: true, duration: 86400 };
+const DEFAULTS = { musicSource: 'serie', music: true, volume: 70, sfx: true, vibe: true, spirits: true, duration: 86400 };
 const settings = Object.assign({}, DEFAULTS, LS.get('settings', {}));
 const saveSettings = () => LS.set('settings', settings);
 
@@ -121,7 +121,6 @@ let lastDraw = 0;
 })(0);
 
 const H = {
-  intro: new Hand($('#intro-hand'), 'blank'),
   home: new Hand($('#home-hand'), 'open'),
   send: new Hand($('#send-hand'), 'pray'),
   cd: new Hand($('#cd-hand'), 'pray'),
@@ -132,7 +131,7 @@ const H = {
 /* =========================================================
    Navigation
    ========================================================= */
-let current = 's-intro';
+let current = 's-home';
 function show(id) {
   if (id === current) return;
   const prev = current;
@@ -143,7 +142,7 @@ function show(id) {
 }
 function onEnter(id, prev) {
   if (prev === 's-record') stopCamera();
-  if (id === 's-home') { H.home.set('open'); updateHome(); }
+  if (id === 's-home') { if (!wishing) H.home.set('open'); updateHome(); }
   if (id === 's-counter') renderCounter(true);
   if (id === 's-wishes') renderWishes();
   if (id === 's-stats') renderStats();
@@ -188,7 +187,7 @@ const NATIVE = window.Capacitor && window.Capacitor.isNativePlatform && window.C
   ? window.Capacitor.Plugins.LocalNotifications : null;
 const nid = s => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h) % 2000000000; };
 if (NATIVE) {
-  NATIVE.createChannel({ id: 'girigo', name: 'Girigo', description: 'Compte à rebours et vœux', importance: 5, visibility: 1, vibration: true }).catch(() => {});
+  NATIVE.createChannel({ id: 'girigo-son', name: 'Girigo', description: 'Compte à rebours et vœux', importance: 5, visibility: 1, vibration: true, sound: 'girigo.wav' }).catch(() => {});
   NATIVE.requestPermissions().catch(() => {});
 }
 
@@ -209,7 +208,7 @@ async function notify(body, { tag, silent } = {}) {
   if (document.visibilityState === 'visible') toast(body);
   if (NATIVE) {
     if (document.visibilityState !== 'visible')
-      NATIVE.schedule({ notifications: [{ id: nid((tag || 'girigo') + Date.now()), title: '기리고', body, channelId: 'girigo' }] }).catch(() => {});
+      NATIVE.schedule({ notifications: [{ id: nid((tag || 'girigo') + Date.now()), title: '기리고', body, channelId: 'girigo-son' }] }).catch(() => {});
     return;
   }
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -226,11 +225,11 @@ async function scheduleSystemNotifications(w) {
   if (NATIVE) {
     const end = new Date(w.deadline).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
     const list = milestones(w).filter(m => m.at > Date.now()).map(m => ({
-      id: nid(w.id + m.key), title: '기리고', body: m.text, channelId: 'girigo',
+      id: nid(w.id + m.key), title: '기리고', body: m.text, channelId: 'girigo-son',
       schedule: { at: new Date(m.at), allowWhileIdle: true },
     }));
     // notification permanente, impossible à balayer, tant que le compte à rebours tourne
-    list.push({ id: nid(w.id + 'ongoing'), title: '기리고 · compte à rebours en cours', channelId: 'girigo',
+    list.push({ id: nid(w.id + 'ongoing'), title: '기리고 · compte à rebours en cours', channelId: 'girigo-son',
       body: `« ${w.text} » — fin ${end}. Il ne peut pas être arrêté.`, ongoing: true, autoCancel: false });
     try { await NATIVE.schedule({ notifications: list }); } catch {}
     return;
@@ -278,28 +277,29 @@ function milestones(w) {
 /* =========================================================
    Intro
    ========================================================= */
+// L'appli s'ouvre directement sur l'accueil ; la main s'assemble pixel par pixel.
 (async () => {
-  H.intro.noise = 0.6;
-  await sleep(300);
-  await H.intro.morph('open', 1600);
-  H.intro.noise = 0;
+  H.home.set('blank'); H.home.noise = 0.6;
+  await sleep(250);
+  await H.home.morph('open', 1400);
+  H.home.noise = 0;
 })();
-$('#s-intro').addEventListener('click', async () => {
+// Les navigateurs n'autorisent le son qu'après un premier toucher.
+let started = false;
+function start() {
+  if (started) return;
+  started = true;
   GirigoAudio.init();
   GirigoAudio.setVolume(settings.volume / 100);
   GirigoAudio.setSfx(settings.sfx);
+  GirigoAudio.setSource(settings.musicSource);
   loadCustomTrack();
   GirigoAudio.setMusic(settings.music);
-  GirigoAudio.glitch(0.5);
-  flash();
-  show('s-home');
-  glitchEl($('#home-logo'), 700);
-  glitchEl($('#wish-btn'), 700);
-  setTimeout(checkUnseenEnd, 1200);
-  // reprogramme les rappels (après un redémarrage du téléphone, par exemple)
-  activeWishes().forEach(scheduleSystemNotifications);
-  if (!LS.get('seenRules', false)) setTimeout(() => toast('Bienvenue. Lis les règles avant de faire un vœu.'), 1500);
-});
+}
+document.addEventListener('pointerdown', start, { capture: true });
+setTimeout(checkUnseenEnd, 1200);
+// reprogramme les rappels (après un redémarrage du téléphone, par exemple)
+setTimeout(() => activeWishes().forEach(scheduleSystemNotifications), 800);
 
 /* =========================================================
    Accueil
@@ -317,72 +317,46 @@ async function startWish() {
   wishing = true;
   if (current !== 's-home') show('s-home');
   const btn = $('#wish-btn');
-  GirigoAudio.glitch(0.3); vibrate(30);
+  GirigoAudio.restartTheme(); vibrate(30);
   // séquence de l'appli : la main se tourne, les deux mains se rejoignent
   btn.style.visibility = 'hidden';
-  $('.wish-sub').style.visibility = 'hidden';
   await H.home.morph('turn', 280);
   await sleep(160);
   btn.style.visibility = ''; glitchEl(btn, 300);
-  GirigoAudio.blip(500, 0.08, 0.06);
   await H.home.morph('join', 320);
   await sleep(120);
-  GirigoAudio.blip(700, 0.08, 0.06);
   await H.home.morph('pray', 300);
-  $('.wish-sub').style.visibility = '';
   await sleep(900);
-  flash(); GirigoAudio.glitch(0.4);
   wishing = false;
-  show('s-rules');
+  if (!LS.get('seenRules', false)) show('s-rules');
+  else openCamera();
 }
 
 /* =========================================================
-   Règles + formulaire
+   Règles
    ========================================================= */
 $('#rules-ok').addEventListener('change', e => { $('#rules-next').disabled = !e.target.checked; vibrate(15); });
-$('#rules-next').addEventListener('click', () => {
-  LS.set('seenRules', true);
-  const last = LS.get('identity', {});
-  if (last.name) $('#f-name').value = last.name;
-  if (last.birth) $('#f-birth').value = last.birth;
-  show('s-form');
-});
-
-let draft = null;
-$('#wish-form').addEventListener('submit', e => {
-  e.preventDefault();
-  draft = readForm(); if (!draft) return;
-  openCamera();
-});
-$('#no-cam').addEventListener('click', () => {
-  draft = readForm(); if (!draft) return;
-  draft.video = null;
-  openConfirm();
-});
-function readForm() {
-  const f = $('#wish-form');
-  if (!f.reportValidity()) return null;
-  const d = { name: $('#f-name').value.trim(), birth: $('#f-birth').value, text: $('#f-wish').value.trim() };
-  LS.set('identity', { name: d.name, birth: d.birth });
-  return d;
-}
+$('#rules-next').addEventListener('click', () => { LS.set('seenRules', true); openCamera(); });
 const fmtBirth = b => b ? new Date(b + 'T12:00:00').toLocaleDateString('fr-FR') : '';
 
 /* =========================================================
-   Caméra + enregistrement (nom et date incrustés)
+   Caméra + enregistrement — comme dans l'appli : l'image et un seul bouton
    ========================================================= */
+let draft = null;
 let stream = null, camVideo = null, facing = 'user', recorder = null, chunks = [], recStart = 0, rafId = 0, recTimer = 0;
-const MAX_REC = 30;
+const MAX_REC = 30, RING = 295.3;
 
 async function openCamera() {
+  draft = { video: null };
   show('s-record');
-  $('#rec-wish').textContent = '« ' + draft.text + ' »';
-  $('#rec-time').textContent = '00:00';
+  const hint = $('#rec-hint'); hint.classList.remove('gone');
+  setTimeout(() => hint.classList.add('gone'), 4500);
+  $('#rec-ring').style.strokeDashoffset = RING;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 720 }, height: { ideal: 1280 } }, audio: true });
   } catch {
     try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing } }); }
-    catch { toast('Caméra indisponible. Ton vœu sera écrit.'); draft.video = null; show('s-confirm'); fillConfirm(); return; }
+    catch { toast('Caméra indisponible. Ton vœu sera écrit.'); openForm(); return; }
   }
   // le canevas prend exactement le format de l'écran : rien n'est rogné
   const cv = $('#rec-canvas');
@@ -398,7 +372,7 @@ function stopCamera() {
   recorder = null; clearInterval(recTimer);
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
-  $('#rec-btn').classList.remove('on'); $('#rec-dot').classList.remove('on');
+  $('#rec-btn').classList.remove('on');
 }
 function drawCam() {
   const c = $('#rec-canvas'), x = c.getContext('2d'), W = c.width, Hh = c.height;
@@ -409,36 +383,31 @@ function drawCam() {
       const dw = vw * s, dh = vh * s;
       x.save();
       if (facing === 'user') { x.translate(W, 0); x.scale(-1, 1); }
-      x.filter = 'grayscale(0.85) contrast(1.25) brightness(0.8)';
+      x.filter = 'brightness(0.85) contrast(1.1)';
       x.drawImage(camVideo, (W - dw) / 2, (Hh - dh) / 2, dw, dh);
       x.restore();
     }
-    // grain rouge + bandes, comme l'écran de la série
-    x.fillStyle = 'rgba(120,0,10,0.08)'; x.fillRect(0, 0, W, Hh);
-    for (let i = 0; i < 260; i++) {
-      x.fillStyle = Math.random() < 0.5 ? 'rgba(255,40,50,.35)' : 'rgba(255,255,255,.18)';
+    // léger grain rouge, comme sur l'écran de l'appli
+    for (let i = 0; i < 140; i++) {
+      x.fillStyle = Math.random() < 0.7 ? 'rgba(255,30,40,.22)' : 'rgba(255,255,255,.1)';
       x.fillRect(Math.random() * W, Math.random() * Hh, 2, 2);
     }
-    if (Math.random() < 0.04) { const y = Math.random() * Hh; x.drawImage(c, 0, y, W, 30, (Math.random() - 0.5) * 40, y, W, 30); }
-    // incrustations obligatoires (en haut, sous l'horloge)
-    const y0 = 120;
-    x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, y0, W, 190);
-    x.fillStyle = '#fff'; x.textBaseline = 'top';
-    x.font = '400 46px DotGothic16, monospace'; x.fillText(draft.name.toUpperCase(), 36, y0 + 22);
-    x.font = '400 32px DotGothic16, monospace'; x.fillText('NÉ(E) LE ' + fmtBirth(draft.birth), 36, y0 + 82);
-    x.fillStyle = '#e0162b'; x.font = '400 26px DotGothic16, monospace';
-    x.fillText('● ' + new Date().toLocaleString('fr-FR'), 36, y0 + 134);
-    x.fillStyle = '#fff'; x.font = '400 40px DotGothic16, monospace'; x.fillText('기리고', W - 170, 40);
+    // horodatage discret dans la vidéo
+    x.fillStyle = 'rgba(255,255,255,.55)'; x.textBaseline = 'bottom';
+    x.font = '400 22px DotGothic16, monospace';
+    x.fillText(new Date().toLocaleString('fr-FR'), 28, Hh - 24);
     rafId = requestAnimationFrame(frame);
   };
   frame();
 }
-$('#rec-flip').addEventListener('click', async () => {
-  if (recorder) return;
-  facing = facing === 'user' ? 'environment' : 'user';
-  stopCamera(); openCamera();
+// double-toucher l'image pour changer de caméra
+let lastTap = 0;
+$('#rec-canvas').addEventListener('pointerup', () => {
+  const now = Date.now();
+  if (now - lastTap < 350 && !recorder) { facing = facing === 'user' ? 'environment' : 'user'; stopCamera(); openCamera(); }
+  lastTap = now;
 });
-$('#rec-cancel').addEventListener('click', () => { stopCamera(); show('s-form'); });
+$('#rec-cancel').addEventListener('click', () => { stopCamera(); show('s-home'); });
 $('#rec-btn').addEventListener('click', () => {
   if (!stream) return;
   if (recorder) { recorder.stop(); return; }
@@ -452,33 +421,42 @@ $('#rec-btn').addEventListener('click', () => {
   recorder.onstop = () => {
     draft.video = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
     clearInterval(recTimer); recorder = null;
-    stopCamera(); openConfirm();
+    stopCamera(); openForm();
   };
   recorder.start(250); recStart = Date.now();
-  $('#rec-btn').classList.add('on'); $('#rec-dot').classList.add('on');
-  GirigoAudio.blip(800, 0.1, 0.08); vibrate(40);
+  $('#rec-btn').classList.add('on'); $('#rec-hint').classList.add('gone');
+  vibrate(40);
   recTimer = setInterval(() => {
-    const s = Math.floor((Date.now() - recStart) / 1000);
-    $('#rec-time').textContent = `00:${pad2(s)} / 00:${MAX_REC}`;
-    if (s >= MAX_REC && recorder) recorder.stop();
-  }, 250);
+    const k = Math.min(1, (Date.now() - recStart) / 1000 / MAX_REC);
+    $('#rec-ring').style.strokeDashoffset = RING * (1 - k);
+    if (k >= 1 && recorder) recorder.stop();
+  }, 100);
 });
 
 /* =========================================================
-   Confirmation + transmission
+   Ton vœu (nom, date de naissance, vœu) + transmission
    ========================================================= */
 let confirmUrl = null;
-function openConfirm() { show('s-confirm'); fillConfirm(); }
-function fillConfirm() {
+function openForm() {
+  show('s-form');
   const v = $('#confirm-video');
   if (confirmUrl) URL.revokeObjectURL(confirmUrl), confirmUrl = null;
   if (draft.video) { confirmUrl = URL.createObjectURL(draft.video); v.src = confirmUrl; v.classList.remove('hidden'); }
   else { v.removeAttribute('src'); v.classList.add('hidden'); }
-  $('#confirm-who').textContent = `${draft.name.toUpperCase()} · ${fmtBirth(draft.birth)}`;
-  $('#confirm-what').textContent = '« ' + draft.text + ' »';
+  const last = LS.get('identity', {});
+  if (last.name && !$('#f-name').value) $('#f-name').value = last.name;
+  if (last.birth && !$('#f-birth').value) $('#f-birth').value = last.birth;
 }
-$('#confirm-back').addEventListener('click', () => show('s-form'));
-$('#send-btn').addEventListener('click', sendWish);
+$('#form-back').addEventListener('click', () => { $('#confirm-video').pause(); show('s-home'); });
+$('#refilm').addEventListener('click', () => { $('#confirm-video').pause(); openCamera(); });
+$('#wish-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!draft) return;
+  Object.assign(draft, { name: $('#f-name').value.trim(), birth: $('#f-birth').value, text: $('#f-wish').value.trim() });
+  LS.set('identity', { name: draft.name, birth: draft.birth });
+  $('#f-wish').value = '';
+  sendWish();
+});
 
 async function sendWish() {
   if (!draft) return;
@@ -596,7 +574,7 @@ function expire(w) {
   showEnd(w);
 }
 function showEnd(w) {
-  if (document.visibilityState !== 'visible' || current === 's-intro') return;
+  if (document.visibilityState !== 'visible') return;
   w.endSeen = true; saveWishes();
   GirigoAudio.end(); flash(true); shake(); vibrate([500, 100, 500, 100, 800]);
   $('#end-sub').textContent = `${w.name} · « ${w.text} »`;
@@ -681,7 +659,7 @@ setInterval(() => {
   const target = worldCount();
   shownWorld = shownWorld ? Math.min(target, shownWorld + Math.max(1, Math.ceil((target - shownWorld) / 8))) : target - 40;
   const s = shownWorld.toLocaleString('fr-FR');
-  $('#world-count').textContent = s; $('#st-world').textContent = s;
+  $('#st-world').textContent = s;
   if (current === 's-stats') renderStats();
 }, 120);
 
@@ -691,6 +669,7 @@ setInterval(() => {
 function renderSettings() {
   $('#set-music').checked = settings.music;
   $('#set-volume').value = settings.volume;
+  $('#set-source').value = settings.musicSource;
   $('#set-sfx').checked = settings.sfx;
   $('#set-vibe').checked = settings.vibe;
   $('#set-spirits').checked = settings.spirits;
@@ -705,6 +684,7 @@ function renderSettings() {
   }[p];
 }
 $('#set-music').addEventListener('change', e => { settings.music = e.target.checked; saveSettings(); GirigoAudio.setMusic(settings.music); });
+$('#set-source').addEventListener('change', e => { settings.musicSource = e.target.value; saveSettings(); GirigoAudio.setSource(settings.musicSource); });
 $('#set-volume').addEventListener('input', e => { settings.volume = +e.target.value; saveSettings(); GirigoAudio.setVolume(settings.volume / 100); });
 $('#set-sfx').addEventListener('change', e => { settings.sfx = e.target.checked; saveSettings(); GirigoAudio.setSfx(settings.sfx); });
 $('#set-vibe').addEventListener('change', e => { settings.vibe = e.target.checked; saveSettings(); vibrate(50); });
@@ -732,7 +712,7 @@ $('#set-track').addEventListener('change', async e => {
 $('#set-track-reset').addEventListener('click', async () => {
   await DB.del('music'); LS.set('trackName', null);
   GirigoAudio.setCustomTrack(null);
-  $('#track-state').textContent = 'Thème Girigo d\'origine (synthétisé).';
+  $('#track-state').textContent = 'Musique de Girigo.';
 });
 async function loadCustomTrack() {
   const name = LS.get('trackName', null);
@@ -784,9 +764,9 @@ function checkUnseenEnd() {
 history.pushState(null, '', location.href);
 window.addEventListener('popstate', () => {
   history.pushState(null, '', location.href);
-  if (current !== 's-home' && current !== 's-intro' && current !== 's-sending') show(current === 's-record' ? 's-form' : 's-home');
+  if (current !== 's-home' && current !== 's-sending') show(current === 's-record' ? 's-form' : 's-home');
 });
 // au démarrage, ouvrir directement sur le compte à rebours si une notification y renvoie
-if (location.hash === '#compte') setTimeout(() => $('#s-intro').click(), 50);
+if (location.hash === '#compte') setTimeout(() => show('s-counter'), 50);
 renderSettings();
 tick();
