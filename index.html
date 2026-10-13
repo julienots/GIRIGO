@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="기리고 — Fais un vœu. Il sera exaucé.">
+<title>Girigo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ÉCRAN D'INTRO -->
+  <section class="screen active" id="s-intro">
+    <canvas class="hand-canvas" id="intro-hand" width="58" height="90"></canvas>
+    <p class="intro-tap blink">TOUCHE L'ÉCRAN</p>
+  </section>
+
+  <!-- ACCUEIL (comme sur la photo) -->
+  <section class="screen" id="s-home">
+    <button class="icon-btn menu-btn" data-go="s-menu" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="glitch logo" id="home-logo">
+      <img src="assets/logo-girigo.png" alt="기리고 — Girigo">
+      <img src="assets/logo-girigo.png" alt="" aria-hidden="true">
+      <img src="assets/logo-girigo.png" alt="" aria-hidden="true">
+    </div>
+    <canvas class="hand-canvas" id="home-hand" width="58" height="90"></canvas>
+    <div class="home-timer hidden" id="home-timer">
+      <span class="lbl">TEMPS RESTANT</span>
+      <span class="val" id="home-timer-val">--:--:--</span>
+    </div>
+    <button class="wish-btn glitch" id="wish-btn" aria-label="Faire un vœu">
+      <img src="assets/sowon-bilgi.png" alt="소원 빌기">
+      <img src="assets/sowon-bilgi.png" alt="" aria-hidden="true">
+      <img src="assets/sowon-bilgi.png" alt="" aria-hidden="true">
+    </button>
+    <p class="wish-sub">FAIRE UN VŒU</p>
+    <p class="world-count"><span id="world-count">0</span> vœux exaucés dans le monde</p>
+  </section>
+
+  <!-- MENU -->
+  <section class="screen" id="s-menu">
+    <header class="bar"><button class="back" data-go="s-home">‹</button><h2>기리고</h2><span></span></header>
+    <nav class="menu-list">
+      <button data-go="s-counter"><b>01</b> Compte à rebours</button>
+      <button data-go="s-wishes"><b>02</b> Mes vœux</button>
+      <button data-go="s-stats"><b>03</b> Compteur</button>
+      <button data-go="s-rules"><b>04</b> Les règles</button>
+      <button data-go="s-settings"><b>05</b> Paramètres</button>
+      <button data-go="s-about"><b>06</b> À propos</button>
+    </nav>
+  </section>
+
+  <!-- RÈGLES -->
+  <section class="screen" id="s-rules">
+    <header class="bar"><button class="back" data-go="s-home">‹</button><h2>LES RÈGLES</h2><span></span></header>
+    <ol class="rules">
+      <li>Filme-toi en formulant ton vœu à voix haute.</li>
+      <li>Ton <b>nom</b> et ta <b>date de naissance</b> doivent apparaître dans la vidéo.</li>
+      <li>Un vœu envoyé ne peut <b>jamais</b> être annulé.</li>
+      <li>Girigo exaucera ton vœu.</li>
+      <li>Dès que ton vœu est accepté, un <b>compte à rebours</b> commence.</li>
+      <li>Quand il atteint zéro, tu paieras le prix.</li>
+      <li>Ton compte à rebours ne s'arrête que si <b>quelqu'un d'autre</b> fait un vœu.</li>
+      <li>Seuls ceux qui ont fait un vœu peuvent <b>les</b> voir.</li>
+    </ol>
+    <label class="check" id="rules-check-wrap"><input type="checkbox" id="rules-ok"> <span>J'ai lu et j'accepte les règles.</span></label>
+    <button class="btn" id="rules-next" disabled>CONTINUER</button>
+  </section>
+
+  <!-- IDENTITÉ + VŒU -->
+  <section class="screen" id="s-form">
+    <header class="bar"><button class="back" data-go="s-home">‹</button><h2>TON IDENTITÉ</h2><span></span></header>
+    <form id="wish-form" class="form" autocomplete="off">
+      <label>NOM<input id="f-name" required maxlength="40" placeholder="Ton nom complet"></label>
+      <label>DATE DE NAISSANCE<input id="f-birth" type="date" required></label>
+      <label>TON VŒU<textarea id="f-wish" required maxlength="200" rows="3" placeholder="Je souhaite que…"></textarea></label>
+      <p class="hint">Ton nom et ta date de naissance seront incrustés dans la vidéo.</p>
+      <button class="btn" type="submit">FILMER MON VŒU</button>
+      <button class="btn ghost" type="button" id="no-cam">Sans caméra (vœu écrit)</button>
+    </form>
+  </section>
+
+  <!-- ENREGISTREMENT -->
+  <section class="screen" id="s-record">
+    <div class="cam-wrap">
+      <canvas id="rec-canvas" width="720" height="1280"></canvas>
+      <div class="rec-ui">
+        <div class="rec-top"><span class="rec-dot" id="rec-dot"></span><span id="rec-time">00:00</span></div>
+        <p class="rec-wish" id="rec-wish"></p>
+        <div class="rec-bottom">
+          <button class="btn ghost small" id="rec-cancel">ANNULER</button>
+          <button class="rec-btn" id="rec-btn" aria-label="Enregistrer"><canvas id="rec-icon" width="58" height="90"></canvas></button>
+          <button class="btn ghost small" id="rec-flip">⟲</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONFIRMATION -->
+  <section class="screen" id="s-confirm">
+    <header class="bar"><button class="back" id="confirm-back">‹</button><h2>ENVOYER ?</h2><span></span></header>
+    <video id="confirm-video" playsinline controls></video>
+    <div class="confirm-card">
+      <p class="who" id="confirm-who"></p>
+      <p class="what" id="confirm-what"></p>
+    </div>
+    <p class="warn">Une fois envoyé, ton vœu ne pourra plus être annulé.</p>
+    <button class="btn danger" id="send-btn">ENVOYER MON VŒU</button>
+  </section>
+
+  <!-- TRANSMISSION -->
+  <section class="screen" id="s-sending">
+    <canvas class="hand-canvas" id="send-hand" width="58" height="90"></canvas>
+    <p class="sending-txt" id="sending-txt">TRANSMISSION…</p>
+    <div class="progress"><i id="send-progress"></i></div>
+  </section>
+
+  <!-- COMPTE À REBOURS -->
+  <section class="screen" id="s-counter">
+    <header class="bar"><button class="back" data-go="s-home">‹</button><h2>기리고</h2><span></span></header>
+    <div id="counter-empty" class="empty">
+      <p>Aucun compte à rebours.</p>
+      <p class="dim">Fais un vœu pour commencer.</p>
+      <button class="btn" data-action="wish">FAIRE UN VŒU</button>
+    </div>
+    <div id="counter-active" class="hidden">
+      <p class="cd-label" id="cd-label">TEMPS RESTANT</p>
+      <div class="cd glitch-text" id="cd" data-text="00:00:00">00:00:00</div>
+      <p class="cd-ms" id="cd-days"></p>
+      <canvas class="hand-canvas small" id="cd-hand" width="58" height="90"></canvas>
+      <div class="cd-card">
+        <p class="who" id="cd-who"></p>
+        <p class="what" id="cd-what"></p>
+      </div>
+      <div class="row">
+        <button class="btn" id="cd-realized">MON VŒU S'EST RÉALISÉ</button>
+        <button class="btn ghost" id="cd-video">VOIR LA VIDÉO</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FIN -->
+  <section class="screen" id="s-end">
+    <div class="end-inner">
+      <p class="end-big glitch-text" data-text="0 0 : 0 0 : 0 0">0 0 : 0 0 : 0 0</p>
+      <p class="end-txt">Le temps est écoulé.</p>
+      <p class="end-sub" id="end-sub"></p>
+      <button class="btn ghost" data-go="s-home">RETOUR</button>
+    </div>
+  </section>
+
+  <!-- MES VŒUX -->
+  <section class="screen" id="s-wishes">
+    <header class="bar"><button class="back" data-go="s-menu">‹</button><h2>MES VŒUX</h2><span></span></header>
+    <ul class="wish-list" id="wish-list"></ul>
+  </section>
+
+  <!-- COMPTEUR / STATS -->
+  <section class="screen" id="s-stats">
+    <header class="bar"><button class="back" data-go="s-menu">‹</button><h2>COMPTEUR</h2><span></span></header>
+    <div class="stats">
+      <div class="stat big"><b id="st-world">0</b><span>vœux exaucés dans le monde</span></div>
+      <div class="stat"><b id="st-total">0</b><span>vœux faits</span></div>
+      <div class="stat"><b id="st-real">0</b><span>vœux réalisés</span></div>
+      <div class="stat"><b id="st-active">0</b><span>en cours</span></div>
+      <div class="stat"><b id="st-stop">0</b><span>suspendus</span></div>
+      <div class="stat"><b id="st-exp">0</b><span>expirés</span></div>
+      <div class="stat"><b id="st-souls">0</b><span>âmes réclamées aujourd'hui</span></div>
+    </div>
+  </section>
+
+  <!-- PARAMÈTRES -->
+  <section class="screen" id="s-settings">
+    <header class="bar"><button class="back" data-go="s-menu">‹</button><h2>PARAMÈTRES</h2><span></span></header>
+    <div class="settings">
+      <label class="set">Musique<input type="checkbox" id="set-music"></label>
+      <label class="set">Volume<input type="range" id="set-volume" min="0" max="100"></label>
+      <label class="set">Effets sonores<input type="checkbox" id="set-sfx"></label>
+      <label class="set">Vibrations<input type="checkbox" id="set-vibe"></label>
+      <label class="set">Apparitions<input type="checkbox" id="set-spirits"></label>
+      <label class="set col">Durée du compte à rebours
+        <select id="set-duration">
+          <option value="60">1 minute (démo)</option>
+          <option value="600">10 minutes</option>
+          <option value="3600">1 heure</option>
+          <option value="86400">24 heures (série)</option>
+          <option value="604800">7 jours</option>
+        </select>
+      </label>
+      <button class="btn ghost" id="set-notif">ACTIVER LES NOTIFICATIONS</button>
+      <p class="hint" id="notif-state"></p>
+      <label class="btn ghost file">IMPORTER MA MUSIQUE<input type="file" id="set-track" accept="audio/*"></label>
+      <p class="hint" id="track-state">Thème Girigo d'origine (synthétisé).</p>
+      <button class="btn ghost" id="set-track-reset">REMETTRE LE THÈME GIRIGO</button>
+      <button class="btn ghost" id="set-test">TESTER UNE NOTIFICATION</button>
+      <button class="btn danger" id="set-reset">TOUT EFFACER</button>
+    </div>
+  </section>
+
+  <!-- À PROPOS -->
+  <section class="screen" id="s-about">
+    <header class="bar"><button class="back" data-go="s-menu">‹</button><h2>À PROPOS</h2><span></span></header>
+    <div class="about">
+      <p><b>기리고 · Girigo</b></p>
+      <p>Application de fan inspirée de la série Netflix <i>If Wishes Could Kill</i> (기리고, 2026).</p>
+      <p>Tout est fictif : aucun vœu n'est réellement envoyé, et les vidéos restent uniquement sur ton téléphone.</p>
+      <p class="dim">Musique : thème original synthétisé en direct. Tu peux importer ta propre musique dans les paramètres.</p>
+    </div>
+  </section>
+
+  <!-- notification in-app -->
+  <div class="toast" id="toast"><img src="assets/icon-192.png" alt=""><div><b>기리고</b><p id="toast-txt"></p></div></div>
+  <!-- apparition -->
+  <div class="spirit" id="spirit"></div>
+  <div class="scanlines"></div>
+  <div class="flash" id="flash"></div>
+  <video id="modal-video" class="modal-video hidden" playsinline controls></video>
+</div>
+<script src="frames.js"></script>
+<script src="audio.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
